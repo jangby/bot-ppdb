@@ -69,10 +69,22 @@ async function submitDaftar(data) {
     }
 }
 
+// Fungsi mengambil daftar nomor yang sudah lulus dari Laravel
+async function getPesertaLulus() {
+    try {
+        const response = await axios.get(`${config.API_URL}/peserta-lulus`);
+        return response.data;
+    } catch (error) {
+        console.error("Error getPesertaLulus:", error.message);
+        return null;
+    }
+}
+
 module.exports = {
     getStat,
     checkStatus,
     getRincian,
     checkToken,    // Tambahan baru
-    submitDaftar
+    submitDaftar,
+    getPesertaLulus
 };
