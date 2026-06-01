@@ -35,9 +35,12 @@ module.exports = {
         // --- BISA DIHAPUS JIKA SUDAH BERHASIL (DEBUGGING) ---
         console.log('Nomor yang berhasil ditangkap:', senderNumber);
 
-        if (!config.ADMIN_PPDB || !config.ADMIN_PPDB.includes(senderNumber)) {
+        // Membersihkan spasi tak sengaja dari array config
+        const allowedAdmins = config.ADMIN_PPDB.map(num => String(num).trim());
+
+        if (!allowedAdmins || !allowedAdmins.includes(senderNumber)) {
             return await sock.sendMessage(remoteJid, { 
-                text: '⛔ *Akses Ditolak*\nNomor Anda tidak terdaftar sebagai Admin PPDB. Anda tidak memiliki izin untuk melihat rincian ini.' 
+                text: '⛔ *Akses Ditolak*\nNomor Anda tidak terdaftar sebagai Admin PPDB. Anda tidak memiliki izin untuk melihat data ini.' 
             }, { quoted: msg });
         }
 
