@@ -91,6 +91,40 @@ async function getKontakWali() {
     }
 }
 
+// Mengambil data lengkap santri berdasarkan No WhatsApp
+async function getProfilSantri(noWa) {
+    try {
+        const response = await axios.get(`${config.API_URL}/profil?wa=${noWa}`);
+        return response.data;
+    } catch (error) {
+        console.error("Error getProfilSantri:", error.message);
+        return null;
+    }
+}
+
+// Mengambil live statistik PPDB
+async function getStatsPPDB() {
+    try {
+        const response = await axios.get(`${config.API_URL}/stats`);
+        return response.data;
+    } catch (error) {
+        console.error("Error getStatsPPDB:", error.message);
+        return null;
+    }
+}
+
+// Mencari data santri berdasarkan keyword
+async function searchSantri(keyword) {
+    try {
+        const response = await axios.get(`${config.API_URL}/search?q=${encodeURIComponent(keyword)}`);
+        return response.data;
+    } catch (error) {
+        console.error("Error searchSantri:", error.message);
+        return null;
+    }
+}
+
+
 module.exports = {
     getStat,
     checkStatus,
@@ -98,5 +132,7 @@ module.exports = {
     checkToken,    // Tambahan baru
     submitDaftar,
     getPesertaLulus,
-    getKontakWali
+    getKontakWali,
+    getProfilSantri,
+    getStatsPPDB, searchSantri
 };

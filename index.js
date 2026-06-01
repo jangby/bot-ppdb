@@ -190,3 +190,82 @@ async function startBot() {
 }
 
 startBot();
+
+const express = require('express');
+const app = express();
+
+// Middleware untuk membaca JSON data dari Laravel
+app.use(express.json());
+
+// PORT listener khusus webhook (Ganti jika port 5000 sudah dipakai aplikasi lain)
+const BOT_SERVER_PORT = 5000;
+
+/**
+ * ENDPOINT: POST /api/notifikasi-ppdb
+ * Berfungsi menerima instruksi dari Laravel untuk mengirim pesan otomatis ke wali santri
+ */
+app.post('/api/notifikasi-ppdb', async (req, res) => {
+    const { no_wa, tipe, nama, detail } = req.body;
+
+    // 1. Validasi dasar input data
+    if (!no_wa || !tipe) {
+        return res.status(400).json({ 
+            success: false, 
+            message: 'Gagal proses: Data nomor WA atau tipe notifikasi tidak boleh kosong.' 
+        });
+    }
+
+    // 2. Format tujuan JID WhatsApp resmi
+    const targetJid = `${no_wa}@s.whatsapp.net`;
+    let pesanTeks = '';
+
+    // 3. Pilihan Template Pesan Berdasarkan Aksi Admin di Web Laravel
+    switch (tipe) {
+        case 'acc_berkas':
+            pesanTeks = `📝 *VERIFIKASI BERKAS BERHASIL* 📝\n\n` +
+                        `Assalamualaikum Bapak/Ibu Wali dari *${nama}*,\n\n` +
+                        `Alhamdulillah, *Surat Perjanjian pendaftaran telah di-ACC* dan dinyatakan VALID oleh Panitia PPDB Pesantren.\n\n` +
+                        `💳 *Tahap Selanjutnya:* Silakan melakukan pembayaran biaya pendaftaran.\n` +
+                        `Anda dapat mengecek rincian tagihan secara mandiri kapan saja dengan membalas chat ini ketik: *!tagihan*\n\n` +
+                        `Terima kasih.`;
+            break;
+
+        case 'terima_bayar':
+            pesanTeks = `💰 *PEMBAYARAN VERIFIED (LUNAS/CICIL)* 💰\n\n` +
+                        `Assalamualaikum Bapak/Ibu Wali dari *${nama}*,\n\n` +
+                        `Pembayaran administrasi Anda sebesar *Rp ${parseInt(detail).toLocaleString('id-ID')}* telah diterima dan *BERHASIL DIVERIFIKASI* oleh bendahara pesantren.\n\n` +
+                        `📊 Untuk melihat sisa kewajiban atau cetak struk digital Anda, silakan ketik: *!tagihan*\n\n` +
+                        `Syukron jazilan, semoga menjadi berkah bagi putra-putri kita.`;
+            break;
+
+        case 'tolak_berkas':
+            pesanTeks = `⚠️ *PERBAIKAN BERKAS PPDB* ⚠️\n\n` +
+                        `Assalamualaikum Bapak/Ibu Wali dari *${nama}*,\n\n` +
+                        `Mohon maaf, berkas Surat Perjanjian Anda *ditolak* oleh panitia karena alasan berikut:\n` +
+                        `» _"${detail}"_\n\n` +
+                        `Silakan lakukan upload ulang berkas yang benar melalui link pendaftaran Anda kembali. Terima kasih.`;
+            break;
+
+        default:
+            return res.status(400).json({ success: false, message: 'Tipe notifikasi tidak dikenal.' });
+    }
+
+    // 4. Eksekusi Pengiriman Pesan via Baileys Client
+    try {
+        // CATATAN: Ganti "sock" dengan nama variabel Baileys Anda jika berbeda (cth: conn, client)
+        if (typeof sock !== 'undefined' && sock) {
+            await sock.sendMessage(targetJid, { text: pesanTeks });
+            return res.status(200).json({ success: true, message: 'Notifikasi WhatsApp berhasil dikirim!' });
+        } else {
+            return res.status(503).json({ success: false, message: 'Koneksi Bot WA sedang terputus/offline.' });
+        }
+    } catch (err) {
+        console.error('⚠️ Gagal mengirim webhook:', err.message);
+        return res.status(500).json({ success: false, message: 'Internal server error: ' + err.message });
+    }
+});
+
+// Jalankan server pendengar HTTP internal bot
+app.listen(BOT_SERVER_PORT, () => {
+    console.log(`[HTTP SERVER] Bot standby menerima webhook Laravel di port ${BOT_SERVER_PORT}`);
+});
