@@ -3,5 +3,5 @@ module.exports = {
     API_URL: 'https://ppdb.ponpesassaadah.com/api/ppdb' ,
 
     // Tambahkan daftar nomor admin PPDB di sini
-    ADMIN_PPDB: ['6285136468097', '6285797750256']
+    ADMIN_PPDB: ['6285136468097', '6285797750256', '6285188427706']
 };
