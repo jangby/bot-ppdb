@@ -1,0 +1,13 @@
+# Mengabaikan folder library node.js
+node_modules/
+
+# Mengabaikan SESI LOGIN WHATSAPP (SANGAT PENTING!)
+auth_info_baileys/
+
+# Mengabaikan file log error (opsional)
+npm-debug.log
+*.log
+
+# (Opsional) Jika config.js Anda berisi data sensitif/password dan repo Anda public, 
+# hilangkan tanda pagar di bawah ini. Tapi jika repo Anda Private, biarkan saja.
+# config.js
