@@ -80,11 +80,23 @@ async function getPesertaLulus() {
     }
 }
 
+// Fungsi mengambil data nama dan nomor untuk vCard
+async function getKontakWali() {
+    try {
+        const response = await axios.get(`${config.API_URL}/kontak-wali`);
+        return response.data;
+    } catch (error) {
+        console.error("Error getKontakWali:", error.message);
+        return null;
+    }
+}
+
 module.exports = {
     getStat,
     checkStatus,
     getRincian,
     checkToken,    // Tambahan baru
     submitDaftar,
-    getPesertaLulus
+    getPesertaLulus,
+    getKontakWali
 };
