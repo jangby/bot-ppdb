@@ -5,6 +5,7 @@ const fs = require('fs'); // Tambahan: Library untuk membaca file system
 const path = require('path'); // Tambahan: Library untuk membaca path/lokasi folder
 const api = require('./api');
 const { sessions, formSteps } = require('./session');
+let globalSock;
 
 // ==========================================
 // MENGUMPULKAN SEMUA COMMAND
@@ -27,6 +28,8 @@ async function startBot() {
         browser: Browsers.macOS('Desktop'),
         syncFullHistory: false
     });
+
+    globalSock = sock;
 
     sock.ev.on('creds.update', saveCreds);
 
@@ -252,9 +255,9 @@ app.post('/api/notifikasi-ppdb', async (req, res) => {
 
     // 4. Eksekusi Pengiriman Pesan via Baileys Client
     try {
-        // CATATAN: Ganti "sock" dengan nama variabel Baileys Anda jika berbeda (cth: conn, client)
-        if (typeof sock !== 'undefined' && sock) {
-            await sock.sendMessage(targetJid, { text: pesanTeks });
+        // [PERBAIKAN] Gunakan globalSock yang sudah kita buat di atas
+        if (globalSock) {
+            await globalSock.sendMessage(targetJid, { text: pesanTeks });
             return res.status(200).json({ success: true, message: 'Notifikasi WhatsApp berhasil dikirim!' });
         } else {
             return res.status(503).json({ success: false, message: 'Koneksi Bot WA sedang terputus/offline.' });
