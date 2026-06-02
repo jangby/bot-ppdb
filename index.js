@@ -6,6 +6,7 @@ const path = require('path'); // Tambahan: Library untuk membaca path/lokasi fol
 const api = require('./api');
 const { sessions, formSteps } = require('./session');
 let globalSock;
+const config = require('./config'); // Wajib ada untuk membaca nomor Admin CS
 
 // ==========================================
 // MENGUMPULKAN SEMUA COMMAND
@@ -68,6 +69,122 @@ async function startBot() {
         const args = textMessage.trim().split(' ').slice(1);
 
         console.log(`Pesan masuk dari ${remoteJid}: ${textMessage}`);
+
+        // ==========================================
+        // FITUR CUSTOMER SERVICE (CS) OTOMATIS
+        // ==========================================
+        const isGroup = remoteJid.endsWith('@g.us');
+        const dbCsPath = path.join(__dirname, 'database_cs.json');
+
+        // A. JIKA ADA YANG BERTANYA DI GRUP MENGANDUNG KATA "ADMIN"
+        if (isGroup && textMessage.toLowerCase().includes('admin')) {
+            
+            // --- DETEKSI SALAM PINTAR ---
+            // Mendeteksi berbagai jenis ketikan salam
+            const containsSalam = /ass?alam|samlekom|mikum|asalamu/i.test(textMessage);
+            const balasanSalam = containsSalam ? "Wa'alaikumussalam Warahmatullahi Wabarakatuh.\n\n" : "";
+
+            // KONDISI 1: Pertanyaan Umum (Brosur/Biaya) -> Langsung dijawab
+            if (/brosur|rincian|biaya|pembayaran/i.test(textMessage)) {
+                const captionBrosur = `${balasanSalam}Halo Kak!\nBerikut adalah brosur dan rincian biaya pendaftaran PSB Pesantren kami.\n\nJika ada pertanyaan lebih lanjut atau butuh bantuan lebih spesifik, jangan ragu untuk tag admin lagi ya! 😊`;
+                
+                try {
+                    await sock.sendMessage(remoteJid, { 
+                        image: fs.readFileSync('./brosur.jpeg'), 
+                        caption: captionBrosur 
+                    }, { quoted: msg });
+                } catch (err) {
+                    await sock.sendMessage(remoteJid, { text: captionBrosur }, { quoted: msg }); 
+                }
+                return; // Hentikan proses
+            }
+
+            // KONDISI 2: Pertanyaan Spesifik -> Cek Jam Kerja (Mendukung Menit)
+            const nowWIB = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
+            const currentHour = nowWIB.getHours();
+            const currentMinute = nowWIB.getMinutes();
+            
+            // Konversi waktu ke angka desimal
+            const currentTime = currentHour + (currentMinute / 60);
+
+            // ====================================================
+            // ⏰ PENGATURAN JAM KERJA (Ubah angka di sini untuk testing)
+            // Rumusnya: Jam + (Menit / 60)
+            // ====================================================
+            const startKerja = 9 + (0 / 60);   // Buka Jam 09:00
+            const endKerja = 18 + (0 / 60);    // Tutup Jam 18:00
+            // (Contoh untuk jam 13:10 --> const endKerja = 13 + (10 / 60); )
+
+            const isWorkingHour = currentTime >= startKerja && currentTime < endKerja;
+
+            if (!isWorkingHour) {
+                // 1. Balas di grup dengan tambahan salam (jika ada)
+                await sock.sendMessage(remoteJid, { 
+                    text: `${balasanSalam}Mohon maaf, saat ini di luar jam kerja panitia.\n\nPertanyaan Bapak/Ibu telah kami catat dan diteruskan ke Admin. Kami akan membalasnya dengan segera pada jam kerja esok hari. 🙏` 
+                }, { quoted: msg });
+
+                // 2. Teruskan pertanyaan ke Nomor Japri Admin CS
+                let csDb = {};
+                if (fs.existsSync(dbCsPath)) csDb = JSON.parse(fs.readFileSync(dbCsPath));
+
+                const adminJid = `${config.ADMIN_CS_NUMBER}@s.whatsapp.net`;
+                const senderJid = msg.key.participant || msg.participant;
+                
+                let groupName = 'Grup PPDB';
+                try { const metadata = await sock.groupMetadata(remoteJid); groupName = metadata.subject; } catch(e) {}
+
+                const fwdMsg = await sock.sendMessage(adminJid, {
+                    text: `📥 *TIKET TANYA JAWAB BARU*\n\n*Dari Grup:* ${groupName}\n*Pengirim:* @${senderJid.split('@')[0]}\n*Pesan:*\n"${textMessage}"\n\n_💡 Cara Balas: Cukup *Reply (Balas)* pesan ini untuk menjawab penanya di grup._`,
+                    mentions: [senderJid]
+                });
+
+                // 3. Simpan memori antrean ke JSON
+                if (fwdMsg && fwdMsg.key.id) {
+                    csDb[fwdMsg.key.id] = {
+                        groupJid: remoteJid,
+                        senderJid: senderJid,
+                        originalMsgId: msg.key.id,
+                        originalText: textMessage,
+                        timestamp: Date.now(),
+                    };
+                    fs.writeFileSync(dbCsPath, JSON.stringify(csDb, null, 2));
+                }
+                return; 
+            }
+            // (Jika di dalam jam kerja, bot diam saja)
+        }
+
+        // B. MEKANISME ADMIN MENJAWAB TIKET CS VIA JAPRI
+        const senderRaw = msg.key.participantAlt || msg.key.remoteJidAlt || msg.key.participant || msg.participant || msg.key.remoteJid;
+        const senderNumber = senderRaw.split('@')[0].split(':')[0];
+
+        if (!isGroup && senderNumber === config.ADMIN_CS_NUMBER) {
+            const quotedId = msg.message?.extendedTextMessage?.contextInfo?.stanzaId;
+            
+            if (quotedId && fs.existsSync(dbCsPath)) {
+                let csDb = JSON.parse(fs.readFileSync(dbCsPath));
+                
+                if (csDb[quotedId]) {
+                    const ticket = csDb[quotedId];
+                    
+                    await sock.sendMessage(ticket.groupJid, { 
+                        text: textMessage 
+                    }, { 
+                        quoted: { 
+                            key: { remoteJid: ticket.groupJid, id: ticket.originalMsgId, participant: ticket.senderJid }, 
+                            message: { conversation: ticket.originalText } 
+                        } 
+                    });
+
+                    delete csDb[quotedId];
+                    fs.writeFileSync(dbCsPath, JSON.stringify(csDb, null, 2));
+
+                    await sock.sendMessage(remoteJid, { text: '✅ _Jawaban berhasil diteruskan ke grup!_' }, { quoted: msg });
+                    return;
+                }
+            }
+        }
+        // ==========================================
 
         // ==========================================
         // FITUR INTERAKTIF: PENGISIAN BIODATA WA
@@ -194,6 +311,58 @@ async function startBot() {
 
 startBot();
 
+// ==========================================
+    // SISTEM PENGINGAT (REMINDER) ADMIN CS
+    // ==========================================
+    setInterval(async () => {
+        const nowWIB = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
+        const currentHour = nowWIB.getHours();
+        const currentMinute = nowWIB.getMinutes();
+        
+        // Konversi ke angka desimal
+        const currentTime = currentHour + (currentMinute / 60);
+        
+        // ====================================================
+        // ⏰ PENGATURAN JAM KERJA (SAMAKAN DENGAN YANG DI ATAS)
+        // ====================================================
+        const startKerja = 9 + (0 / 60);   // Buka Jam 09:00
+        const endKerja = 18 + (0 / 60);    // Tutup Jam 18:00
+        
+        // Alarm hanya mengecek jika sekarang sedang jam kerja
+        if (currentTime >= startKerja && currentTime < endKerja) {
+            const dbCsPath = path.join(__dirname, 'database_cs.json');
+            
+            if (fs.existsSync(dbCsPath)) {
+                const csDb = JSON.parse(fs.readFileSync(dbCsPath));
+                const now = Date.now();
+                const SATU_JAM = 60 * 60 * 1000;
+                // Untuk testing lebih cepat, ubah SATU_JAM jadi 1 menit: const SATU_JAM = 60 * 1000;
+
+                let pendingCount = 0;
+
+                for (const key in csDb) {
+                    const ticket = csDb[key];
+                    
+                    if (now - ticket.timestamp >= SATU_JAM) {
+                        pendingCount++;
+                        csDb[key].timestamp = now; // Reset timer alarm tiket ini
+                    }
+                }
+
+                if (pendingCount > 0) {
+                    fs.writeFileSync(dbCsPath, JSON.stringify(csDb, null, 2));
+                    
+                    const adminJid = `${config.ADMIN_CS_NUMBER}@s.whatsapp.net`;
+                    if (globalSock) {
+                        await globalSock.sendMessage(adminJid, { 
+                            text: `⏰ *REMINDER CS*\n\nMasih ada *${pendingCount} tiket pertanyaan* dari grup yang belum Anda jawab.\n\nSilakan cek riwayat pesan di atas dan *Balas (Reply)* untuk menjawab otomatis ke grup.` 
+                        });
+                    }
+                }
+            }
+        }
+    }, 1 * 60 * 1000); // Mengecek setiap 5 Menit (Ganti jadi 1 * 60 * 1000 jika sedang testing)
+
 const express = require('express');
 const app = express();
 
@@ -227,7 +396,7 @@ app.post('/api/notifikasi-ppdb', async (req, res) => {
         case 'acc_berkas':
             pesanTeks = `📝 *VERIFIKASI BERKAS BERHASIL* 📝\n\n` +
                         `Assalamualaikum Bapak/Ibu Wali dari *${nama}*,\n\n` +
-                        `Alhamdulillah, *Surat Perjanjian pendaftaran telah di-ACC* dan dinyatakan VALID oleh Panitia PPDB Pesantren.\n\n` +
+                        `Alhamdulillah, *Surat Perjanjian pendaftaran telah di-ACC* dan dinyatakan VALID oleh Panitia PSB Pesantren.\n\n` +
                         `💳 *Tahap Selanjutnya:* Silakan melakukan pembayaran biaya pendaftaran.\n` +
                         `Anda dapat mengecek rincian tagihan secara mandiri kapan saja dengan membalas chat ini ketik: *!tagihan*\n\n` +
                         `Terima kasih.`;
@@ -242,7 +411,7 @@ app.post('/api/notifikasi-ppdb', async (req, res) => {
             break;
 
         case 'tolak_berkas':
-            pesanTeks = `⚠️ *PERBAIKAN BERKAS PPDB* ⚠️\n\n` +
+            pesanTeks = `⚠️ *PERBAIKAN BERKAS PSB* ⚠️\n\n` +
                         `Assalamualaikum Bapak/Ibu Wali dari *${nama}*,\n\n` +
                         `Mohon maaf, berkas Surat Perjanjian Anda *ditolak* oleh panitia karena alasan berikut:\n` +
                         `» _"${detail}"_\n\n` +

@@ -4,5 +4,6 @@ module.exports = {
     //API_URL: 'http://127.0.0.1:8000/api/ppdb',
 
     // Tambahkan daftar nomor admin PPDB di sini
-    ADMIN_PPDB: ['6285136468097', '6285797750256', '6285188427706']
+    ADMIN_PPDB: ['6285136468097', '6285797750256', '6285188427706'],
+    ADMIN_CS_NUMBER: '6285797750256',
 };
