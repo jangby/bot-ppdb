@@ -426,7 +426,7 @@ app.post('/api/notifikasi-ppdb', async (req, res) => {
                         `Assalamualaikum Bapak/Ibu Wali dari *${nama}*,\n\n` +
                         `Alhamdulillah, *Surat Perjanjian pendaftaran telah di-ACC* dan dinyatakan VALID oleh Panitia PSB Pesantren.\n\n` +
                         `💳 *Tahap Selanjutnya:* Silakan melakukan pembayaran biaya pendaftaran.\n` +
-                        `Anda dapat mengecek rincian tagihan secara mandiri kapan saja dengan membalas chat ini ketik: *!tagihan*\n\n` +
+                        `Anda dapat mengecek rincian tagihan secara mandiri kapan saja dengan membalas chat ini ketik: *.tagihan*\n\n` +
                         `Terima kasih.`;
             break;
 
