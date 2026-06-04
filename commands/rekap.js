@@ -1,7 +1,7 @@
 const config = require('../config');
 
 module.exports = {
-    name: '!rekap',
+    name: '.rekap',
     description: 'Melihat live rekapitulasi statistik PPDB',
     async execute(sock, remoteJid, args, api, msg) {
         

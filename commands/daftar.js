@@ -1,7 +1,7 @@
 const { sessions, formSteps } = require('../session');
 
 module.exports = {
-    name: '!daftar',
+    name: '.daftar',
     description: 'Mulai mengisi formulir pendaftaran interaktif',
     async execute(sock, remoteJid, args, api, msg) {
         

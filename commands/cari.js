@@ -23,7 +23,7 @@ function bersihkanAngka(val) {
 }
 
 module.exports = {
-    name: '!cari',
+    name: '.cari',
     description: 'Mencari kilat data pendaftar santri',
     async execute(sock, remoteJid, args, api, msg) {
         

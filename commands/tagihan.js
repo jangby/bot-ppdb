@@ -12,7 +12,7 @@ function bersihkanAngka(val) {
     
     // 2. Jika format lokal/rupiah dengan koma sen (cth: "4.000.000,00")
     if (str.includes(',')) {
-        str = str.split(',')[0]; // Buang angka di belakang koma sen
+        str = str.split(',')[0]; 
     }
     
     // Buang semua karakter selain angka (titik ribuan, Rp, dll)
@@ -21,8 +21,8 @@ function bersihkanAngka(val) {
 }
 
 module.exports = {
-    name: '!tagihan',
-    description: 'Cek rincian tagihan keuangan PPDB',
+    name: '.tagihan',
+    description: 'Cek ringkasan tagihan keuangan PPDB',
     async execute(sock, remoteJid, args, api, msg) {
         
         // 1. Proteksi Grup (Wajib Japri untuk menjaga privasi keuangan)
@@ -37,7 +37,7 @@ module.exports = {
         let senderRaw = msg.key.participantAlt || msg.key.remoteJidAlt || msg.key.participant || msg.participant || msg.key.remoteJid;
         let senderNumber = senderRaw.split('@')[0].split(':')[0];
         
-        await sock.sendMessage(remoteJid, { text: '🔍 _Merekap data keuangan dari server..._' });
+        await sock.sendMessage(remoteJid, { text: '🔍 _Merekap ringkasan keuangan dari server..._' });
 
         // 3. Tarik data dari API Laravel
         const res = await api.getProfilSantri(senderNumber);
@@ -48,35 +48,36 @@ module.exports = {
             });
         }
 
-        // 4. Menyusun laporan teks rincian biaya
-        let text = `💰 *RINCIAN KEUANGAN PPDB* 💰\n`;
+        // 4. Menyusun laporan teks RINGKASAN
+        let text = `💰 *RINGKASAN KEUANGAN PPDB* 💰\n`;
+        
         for (let c of res.data) {
             let totalTagihan = 0;
             let totalBayar = 0;
 
             text += `\n👤 *${c.nama_lengkap}* (${c.jenjang})\n`;
-            text += `No. Daftar: ${c.no_daftar}\n\n`;
+            text += `📝 No. Daftar: ${c.no_daftar}\n\n`;
 
             if (c.bills && Array.isArray(c.bills)) {
+                // Proses menjumlahkan semua tagihan di belakang layar (tanpa menampilkannya satu per satu)
                 for (let b of c.bills) {
-                    // Bersihkan masing-masing nominal dari bug desimal .00 database
                     let tagihanNum = bersihkanAngka(b.nominal_tagihan ?? b.nominal);
                     let terbayarNum = bersihkanAngka(b.nominal_terbayar ?? b.nominal_disetor);
-                    let sisa = tagihanNum - terbayarNum;
                     
                     totalTagihan += tagihanNum;
                     totalBayar += terbayarNum;
-
-                    text += `▪️ ${b.payment_type ? b.payment_type.nama_pembayaran : 'Item Tagihan'}\n`;
-                    text += `   Biaya: Rp ${tagihanNum.toLocaleString('id-ID')}\n`;
-                    text += `   Sisa : ${sisa === 0 ? '✅ *LUNAS*' : `Rp ${sisa.toLocaleString('id-ID')}`}\n\n`;
                 }
             }
 
             let totalSisa = totalTagihan - totalBayar;
-            text += `*TOTAL SISA KESELURUHAN:*\n*Rp ${totalSisa.toLocaleString('id-ID')}*\n`;
+
+            // Menampilkan Hasil Akhir Saja
+            text += `📈 *Total Tagihan:* Rp ${totalTagihan.toLocaleString('id-ID')}\n`;
+            text += `✅ *Total Terbayar:* Rp ${totalBayar.toLocaleString('id-ID')}\n`;
+            text += `⚠️ *Sisa Pembayaran:* ${totalSisa === 0 ? '*LUNAS 🎉*' : `*Rp ${totalSisa.toLocaleString('id-ID')}*`}\n`;
             text += `\n--------------------------------\n`;
         }
+        
         text += `_Mohon abaikan pesan ini jika Anda sudah melunasi pembayaran hari ini._`;
         
         // 5. Kirim laporan akhir

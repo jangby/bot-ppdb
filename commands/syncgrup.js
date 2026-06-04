@@ -1,7 +1,7 @@
 const config = require('../config');
 
 module.exports = {
-    name: '!syncgrup',
+    name: '.syncgrup',
     description: 'Menarik otomatis nomor yang sudah selesai verifikasi ke dalam grup',
     async execute(sock, remoteJid, args, api, msg) {
         

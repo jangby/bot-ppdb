@@ -1,5 +1,5 @@
 module.exports = {
-    name: '!status',
+    name: '.status',
     description: 'Cek status pendaftaran santri',
     async execute(sock, remoteJid, args, api, msg) {
         

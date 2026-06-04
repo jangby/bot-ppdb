@@ -16,7 +16,13 @@ const commandFiles = fs.readdirSync(path.join(__dirname, 'commands')).filter(fil
 
 for (const file of commandFiles) {
     const command = require(`./commands/${file}`);
-    commands.set(command.name, command);
+    
+    // TAMBAHAN: Jika 1 file berisi banyak perintah (Array), pecah dan daftarkan semuanya
+    if (Array.isArray(command)) {
+        command.forEach(cmd => commands.set(cmd.name, cmd));
+    } else {
+        commands.set(command.name, command);
+    }
 }
 
 async function startBot() {
@@ -65,8 +71,16 @@ async function startBot() {
 
         const remoteJid = msg.key.remoteJid;
         const textMessage = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
-        const commandName = textMessage.trim().split(' ')[0].toLowerCase();
+        let commandName = textMessage.trim().split(' ')[0].toLowerCase();
         const args = textMessage.trim().split(' ').slice(1);
+
+        // --- TAMBAHAN SHORTCUT MENU ---
+        // Jika orang tua hanya mengetik kata-kata ini tanpa awalan '!', kita arahkan ke !menu
+        const helpKeywords = ['menu', 'help', 'bantuan', 'info', 'ping', 'p'];
+        if (helpKeywords.includes(commandName)) {
+            commandName = '.menu';
+        }
+        // ------------------------------
 
         console.log(`Pesan masuk dari ${remoteJid}: ${textMessage}`);
 
@@ -77,14 +91,14 @@ async function startBot() {
         const dbCsPath = path.join(__dirname, 'database_cs.json');
 
         // A. JIKA ADA YANG BERTANYA DI GRUP MENGANDUNG KATA "ADMIN"
-        if (isGroup && textMessage.toLowerCase().includes('admin')) {
+        // (Tambahan !textMessage.startsWith('!') agar command admin tidak dicegat)
+        if (isGroup && textMessage.toLowerCase().includes('admin') && !textMessage.startsWith('!')) {
             
-            // --- DETEKSI SALAM PINTAR ---
-            // Mendeteksi berbagai jenis ketikan salam
+            // --- 0. DETEKSI SALAM PINTAR ---
             const containsSalam = /ass?alam|samlekom|mikum|asalamu/i.test(textMessage);
             const balasanSalam = containsSalam ? "Wa'alaikumussalam Warahmatullahi Wabarakatuh.\n\n" : "";
 
-            // KONDISI 1: Pertanyaan Umum (Brosur/Biaya) -> Langsung dijawab
+            // --- 1. KONDISI BROSUR & BIAYA (Tetap Dipertahankan Sesuai Aslinya) ---
             if (/brosur|rincian|biaya|pembayaran/i.test(textMessage)) {
                 const captionBrosur = `${balasanSalam}Halo Kak!\nBerikut adalah brosur dan rincian biaya pendaftaran PSB Pesantren kami.\n\nJika ada pertanyaan lebih lanjut atau butuh bantuan lebih spesifik, jangan ragu untuk tag admin lagi ya! 😊`;
                 
@@ -96,34 +110,48 @@ async function startBot() {
                 } catch (err) {
                     await sock.sendMessage(remoteJid, { text: captionBrosur }, { quoted: msg }); 
                 }
-                return; // Hentikan proses
+                return; // Hentikan proses, jangan lanjut ke bawah
             }
 
-            // KONDISI 2: Pertanyaan Spesifik -> Cek Jam Kerja (Mendukung Menit)
+            // --- 2. KONDISI AUTO-REPLY DINAMIS (Dari database_autoreply.json) ---
+            const dbReplyPath = path.join(__dirname, 'database_autoreply.json');
+            let isAutoReplied = false;
+
+            if (fs.existsSync(dbReplyPath)) {
+                const autoReplies = JSON.parse(fs.readFileSync(dbReplyPath));
+                
+                for (const keyword in autoReplies) {
+                    if (textMessage.toLowerCase().includes(keyword)) {
+                        const jawabanDinamis = balasanSalam + autoReplies[keyword];
+                        
+                        await sock.sendMessage(remoteJid, { text: jawabanDinamis }, { quoted: msg });
+                        isAutoReplied = true;
+                        break; // Berhenti mencari kata kunci lain
+                    }
+                }
+            }
+
+            // Jika sudah dijawab oleh Auto-Reply dinamis, hentikan proses (Jangan teruskan ke CS)
+            if (isAutoReplied) return;
+
+            // --- 3. KONDISI PERTANYAAN SPESIFIK (JADIKAN TIKET CS) ---
             const nowWIB = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
             const currentHour = nowWIB.getHours();
             const currentMinute = nowWIB.getMinutes();
-            
-            // Konversi waktu ke angka desimal
             const currentTime = currentHour + (currentMinute / 60);
 
-            // ====================================================
-            // ⏰ PENGATURAN JAM KERJA (Ubah angka di sini untuk testing)
-            // Rumusnya: Jam + (Menit / 60)
-            // ====================================================
-            const startKerja = 9 + (0 / 60);   // Buka Jam 09:00
-            const endKerja = 18 + (0 / 60);    // Tutup Jam 18:00
-            // (Contoh untuk jam 13:10 --> const endKerja = 13 + (10 / 60); )
-
+            // ⏰ PENGATURAN JAM KERJA
+            const startKerja = 14 + (0 / 60);   
+            const endKerja = 18 + (0 / 60);    
             const isWorkingHour = currentTime >= startKerja && currentTime < endKerja;
 
             if (!isWorkingHour) {
-                // 1. Balas di grup dengan tambahan salam (jika ada)
+                // 1. Balas di grup (menghargai salam)
                 await sock.sendMessage(remoteJid, { 
                     text: `${balasanSalam}Mohon maaf, saat ini di luar jam kerja panitia.\n\nPertanyaan Bapak/Ibu telah kami catat dan diteruskan ke Admin. Kami akan membalasnya dengan segera pada jam kerja esok hari. 🙏` 
                 }, { quoted: msg });
 
-                // 2. Teruskan pertanyaan ke Nomor Japri Admin CS
+                // 2. Teruskan ke Japri Admin CS
                 let csDb = {};
                 if (fs.existsSync(dbCsPath)) csDb = JSON.parse(fs.readFileSync(dbCsPath));
 
@@ -138,7 +166,7 @@ async function startBot() {
                     mentions: [senderJid]
                 });
 
-                // 3. Simpan memori antrean ke JSON
+                // 3. Simpan Memori Tiket
                 if (fwdMsg && fwdMsg.key.id) {
                     csDb[fwdMsg.key.id] = {
                         groupJid: remoteJid,
@@ -151,7 +179,7 @@ async function startBot() {
                 }
                 return; 
             }
-            // (Jika di dalam jam kerja, bot diam saja)
+            // (Jika di dalam jam kerja, bot diam membiarkan Admin grup membalas)
         }
 
         // B. MEKANISME ADMIN MENJAWAB TIKET CS VIA JAPRI
@@ -435,6 +463,60 @@ app.post('/api/notifikasi-ppdb', async (req, res) => {
         console.error('⚠️ Gagal mengirim webhook:', err.message);
         return res.status(500).json({ success: false, message: 'Internal server error: ' + err.message });
     }
+});
+
+/**
+ * ENDPOINT: POST /api/send-message
+ * Berfungsi menerima instruksi dari Laravel
+ */
+app.post('/api/send-message', (req, res) => {
+    // Perhatikan: Tulisan 'async' di atas dihapus agar ini berjalan langsung
+    const { no_wa, pesan, file_url, file_name } = req.body;
+
+    if (!no_wa || !pesan) {
+        return res.status(400).json({ success: false, message: 'Data nomor WA atau pesan tidak lengkap.' });
+    }
+
+    // 1. SOLUSI DEADLOCK: Langsung kembalikan respons 200 OK ke Laravel detik ini juga!
+    // Ini membuat Laravel langsung "Lega" dan tombol di web langsung merespons sukses.
+    res.status(200).json({ success: true, message: 'Pesan diterima dan sedang diproses di background!' });
+
+    // 2. Eksekusi pengiriman dan download PDF dilakukan di belakang layar
+    const targetJid = `${no_wa}@s.whatsapp.net`;
+
+    // Beri jeda waktu 1.5 detik agar server Laravel benar-benar selesai loading 
+    // sebelum bot mencoba men-download file PDF-nya
+    setTimeout(async () => {
+        try {
+            if (globalSock) {
+                if (file_url) {
+                    // Deteksi apakah file berupa Gambar atau Dokumen
+                    const isImage = file_name && (file_name.endsWith('.png') || file_name.endsWith('.jpg') || file_name.endsWith('.jpeg'));
+
+                    if (isImage) {
+                        // KIRIM SEBAGAI GAMBAR LANGSUNG TAMPIL
+                        await globalSock.sendMessage(targetJid, { 
+                            image: { url: file_url },
+                            caption: pesan 
+                        });
+                    } else {
+                        // KIRIM SEBAGAI DOKUMEN FILE
+                        await globalSock.sendMessage(targetJid, { 
+                            document: { url: file_url },
+                            mimetype: 'application/pdf', 
+                            fileName: file_name || 'Dokumen.pdf',
+                            caption: pesan 
+                        });
+                    }
+                } else {
+                    await globalSock.sendMessage(targetJid, { text: pesan });
+                }
+                console.log(`[WA SUCCESS] Berhasil mengirim pesan ke ${no_wa}`);
+            }
+        } catch (err) {
+            console.error(`[WA ERROR] Gagal mengirim pesan ke ${no_wa}:`, err.message);
+        }
+    }, 1500);
 });
 
 // Jalankan server pendengar HTTP internal bot

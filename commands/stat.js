@@ -1,5 +1,5 @@
 module.exports = {
-    name: '!stat',
+    name: '.stat',
     async execute(sock, remoteJid, args, api) {
         await sock.sendMessage(remoteJid, { text: '⏳ Sedang mengambil data statistik...' });
         

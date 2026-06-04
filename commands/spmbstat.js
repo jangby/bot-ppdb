@@ -1,7 +1,7 @@
 const config = require('../config');
 
 module.exports = {
-    name: '!spmbstat',
+    name: '.spmbstat',
     description: 'Melihat statistik pendaftar PPDB secara real-time',
     
     // Pastikan menangkap parameter msg dari index.js

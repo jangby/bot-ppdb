@@ -1,7 +1,7 @@
 const config = require('../config');
 
 module.exports = {
-    name: '!rincianspmb',
+    name: '.rincianspmb',
     description: 'Melihat rincian pendaftar dan progres target secara rapi',
     
     // Menangkap parameter msg yang baru saja kita tambahkan di index.js

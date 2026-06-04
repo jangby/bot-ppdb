@@ -124,6 +124,60 @@ async function searchSantri(keyword) {
     }
 }
 
+// Tambahkan fungsi ini di dalam file api.js
+async function cekStatusSantri(keyword) {
+    try {
+        const response = await axios.get(`${config.API_URL}/cekstatus?q=${encodeURIComponent(keyword)}`);
+        return response.data;
+    } catch (error) {
+        console.error("Error cekStatusSantri:", error.message);
+        return null;
+    }
+}
+
+// Tambahkan fungsi ini di dalam file api.js
+async function cekBerkas(keyword) {
+    try {
+        const response = await axios.get(`${config.API_URL}/cekberkas?q=${encodeURIComponent(keyword)}`);
+        return response.data;
+    } catch (error) {
+        console.error("Error cekBerkas:", error.message);
+        return null;
+    }
+}
+
+// Tambahkan di dalam api.js
+async function getKartuTes(keyword) {
+    try {
+        const response = await axios.get(`${config.API_URL}/kartutes?q=${encodeURIComponent(keyword)}`);
+        return response.data;
+    } catch (error) {
+        console.error("Error getKartuTes:", error.message);
+        return null;
+    }
+}
+
+// Tambahkan fungsi ini
+async function cekAntrean(keyword) {
+    try {
+        const response = await axios.get(`${config.API_URL}/cekantrean?q=${encodeURIComponent(keyword)}`);
+        return response.data;
+    } catch (error) {
+        console.error("Error cekAntrean:", error.message);
+        return null;
+    }
+}
+
+// Tambahkan fungsi ini
+async function getInfoAsrama() {
+    try {
+        const response = await axios.get(`${config.API_URL}/info-asrama`);
+        return response.data;
+    } catch (error) {
+        console.error("Error getInfoAsrama:", error.message);
+        return null;
+    }
+}
 
 module.exports = {
     getStat,
@@ -134,5 +188,5 @@ module.exports = {
     getPesertaLulus,
     getKontakWali,
     getProfilSantri,
-    getStatsPPDB, searchSantri
+    getStatsPPDB, searchSantri, cekStatusSantri, cekBerkas, getKartuTes, cekAntrean, getInfoAsrama
 };

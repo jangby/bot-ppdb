@@ -1,7 +1,7 @@
 const config = require('../config');
 
 module.exports = {
-    name: '!getkontak',
+    name: '.getkontak',
     description: 'Men-download file VCF berisi kontak seluruh wali santri',
     async execute(sock, remoteJid, args, api, msg) {
         
