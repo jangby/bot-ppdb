@@ -29,7 +29,7 @@ module.exports = {
         const isGroup = remoteJid.endsWith('@g.us');
         if (isGroup) {
             return await sock.sendMessage(remoteJid, { 
-                text: '🔒 *Peringatan Privasi*\nData keuangan bersifat sensitif. Silakan kirim perintah *!tagihan* melalui pesan pribadi (Japri) langsung ke bot ini.' 
+                text: '🔒 *Peringatan Privasi*\nData keuangan bersifat sensitif. Silakan kirim perintah *.tagihan* melalui pesan pribadi (Japri) langsung ke bot ini.' 
             }, { quoted: msg });
         }
 

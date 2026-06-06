@@ -6,7 +6,7 @@ module.exports = {
         // 1. Cek argumen (Wajib memasukkan No Daftar / NIK)
         if (args.length === 0) {
             return await sock.sendMessage(remoteJid, { 
-                text: '💡 *Format Salah*\n\nContoh penggunaan:\nKetik *!berkas REG-2026123456*\natau\nKetik *!berkas 3201234567890001* (Menggunakan NIK)' 
+                text: '💡 *Format Salah*\n\nContoh penggunaan:\nKetik *.berkas REG-2026123456*\natau\nKetik *!berkas 3201234567890001* (Menggunakan NIK)' 
             }, { quoted: msg });
         }
 

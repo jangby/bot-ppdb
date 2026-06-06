@@ -5,7 +5,7 @@ module.exports = {
         
         if (args.length === 0) {
             return await sock.sendMessage(remoteJid, { 
-                text: '💡 *Format Salah*\n\nContoh penggunaan:\nKetik *!antrean REG-2026123456*\natau menggunakan NIK:\nKetik *!antrean 3201234567890001*' 
+                text: '💡 *Format Salah*\n\nContoh penggunaan:\nKetik *.antrean REG-2026123456*\natau menggunakan NIK:\nKetik *!antrean 3201234567890001*' 
             }, { quoted: msg });
         }
 

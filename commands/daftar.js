@@ -15,7 +15,7 @@ module.exports = {
         // 2. Validasi Token
         if (args.length === 0) {
             return await sock.sendMessage(remoteJid, { 
-                text: '❌ Format salah!\n\nCara penggunaan:\n*!daftar [KODE_TOKEN]*\nContoh: !daftar ABC123XYZ' 
+                text: '❌ Format salah!\n\nCara penggunaan:\n*!daftar [KODE_TOKEN]*\nContoh: .daftar ABC123XYZ' 
             }, { quoted: msg });
         }
 

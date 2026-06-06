@@ -36,7 +36,7 @@ module.exports = {
         }
 
         if (args.length === 0) {
-            return await sock.sendMessage(remoteJid, { text: '💡 *Format Salah*\nContoh penggunaan: *!cari Deni*' }, { quoted: msg });
+            return await sock.sendMessage(remoteJid, { text: '💡 *Format Salah*\nContoh penggunaan: *.cari Deni*' }, { quoted: msg });
         }
 
         const keyword = args.join(' ');

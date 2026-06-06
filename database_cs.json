@@ -4,6 +4,27 @@
     "senderJid": "168032676651233@lid",
     "originalMsgId": "A59F240047625C40DF1413A7BB06EE75",
     "originalText": "Admin",
-    "timestamp": 1780539428556
+    "timestamp": 1780633315971
+  },
+  "3EB01C011687F07540E460": {
+    "groupJid": "120363406553801682@g.us",
+    "senderJid": "52223178461310@lid",
+    "originalMsgId": "3EB0DBCCC9CEC569922B32",
+    "originalText": "🤖 Silakan jadikan bot sebagai *Admin* terlebih dahulu untuk menggunakan perintah ini.",
+    "timestamp": 1780633315971
+  },
+  "3EB089842281BFCD0C13C9": {
+    "groupJid": "120363406553801682@g.us",
+    "senderJid": "229064145170580@lid",
+    "originalMsgId": "A5037BC9DDC005C5AF8E2AA1E10876E3",
+    "originalText": "Jadiin admin gak tuu Alwi",
+    "timestamp": 1780633315971
+  },
+  "3EB0EF13AFED3F23A5FDF8": {
+    "groupJid": "120363406553801682@g.us",
+    "senderJid": "52223178461310@lid",
+    "originalMsgId": "3EB0F52681D3D854838010",
+    "originalText": "⚔️ Fitur *RPG* sedang dinonaktifkan oleh Admin.",
+    "timestamp": 1780633315971
   }
 }

@@ -6,7 +6,7 @@ module.exports = {
         // Cek apakah user memberikan argumen/kata kunci
         if (args.length === 0) {
             return await sock.sendMessage(remoteJid, { 
-                text: '💡 *Format Salah*\n\nContoh penggunaan:\nKetik *!cekstatus REG-2026123456*\natau\nKetik *!cekstatus 3201234567890001* (Menggunakan NIK)' 
+                text: '💡 *Format Salah*\n\nContoh penggunaan:\nKetik *.cekstatus REG-2026123456*\natau\nKetik *!cekstatus 3201234567890001* (Menggunakan NIK)' 
             }, { quoted: msg });
         }
 

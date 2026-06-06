@@ -6,7 +6,7 @@ module.exports = {
         // Cek jika perintah dipakai di grup
         const isGroup = remoteJid.endsWith('@g.us');
         if (isGroup) {
-            return await sock.sendMessage(remoteJid, { text: '🔒 *Peringatan Privasi*\nUntuk menjaga kerahasiaan data anak Anda, perintah *!status* hanya bisa digunakan melalui pesan pribadi (Japri) ke bot ini.' }, { quoted: msg });
+            return await sock.sendMessage(remoteJid, { text: '🔒 *Peringatan Privasi*\nUntuk menjaga kerahasiaan data anak Anda, perintah *.status* hanya bisa digunakan melalui pesan pribadi (Japri) ke bot ini.' }, { quoted: msg });
         }
 
         // Radar Anti-LID untuk mendapatkan nomor asli di Japri
@@ -17,7 +17,7 @@ module.exports = {
         const res = await api.getProfilSantri(senderNumber);
         
         if (!res || !res.success) {
-            return await sock.sendMessage(remoteJid, { text: '❌ *Data Tidak Ditemukan*\nPastikan Anda mengirim pesan ini menggunakan Nomor WA yang sama dengan yang didaftarkan ke sistem PPDB.' });
+            return await sock.sendMessage(remoteJid, { text: '❌ *Data Tidak Ditemukan*\nPastikan Anda mengirim pesan ini menggunakan Nomor WA yang sama dengan yang didaftarkan ke sistem PSB.' });
         }
 
         // Jika baru di tahap verifikasi awal (belum isi biodata)
