@@ -8,6 +8,8 @@ auth_info_baileys/
 npm-debug.log
 *.log
 
+database_cs.json
+
 # (Opsional) Jika config.js Anda berisi data sensitif/password dan repo Anda public, 
 # hilangkan tanda pagar di bawah ini. Tapi jika repo Anda Private, biarkan saja.
 # config.js
