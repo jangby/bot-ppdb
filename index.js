@@ -83,6 +83,41 @@ async function startBot() {
         // ------------------------------
 
         console.log(`Pesan masuk dari ${remoteJid}: ${textMessage}`);
+        
+        // ==============================================================
+        // 🛡️ FITUR DLP (DATA LOSS PREVENTION) - SENSOR NIK & NO DAFTAR
+        // ==============================================================
+        const isGroupChat = remoteJid.endsWith('@g.us');
+        
+        if (isGroupChat && !msg.key.fromMe && textMessage) {
+            const regexNIK = /\b\d{16}\b/; 
+            const regexNoDaftar = /\b(REG|OFF|LJT)-\d+\b/i; 
+            
+            if (regexNIK.test(textMessage) || regexNoDaftar.test(textMessage)) {
+                console.log(`[DLP RADAR] ⚠️ Data sensitif terdeteksi! Langsung mengeksekusi penghapusan...`);
+                
+                try {
+                    // KARENA BOT ADALAH PEMBUAT GRUP (SUPERADMIN MUTLAK), 
+                    // KITA LEWATI SEMUA PENGECEKAN STATUS DAN LANGSUNG TEMBAK PERINTAH HAPUS!
+                    
+                    await sock.sendMessage(remoteJid, { delete: msg.key });
+                    console.log(`[DLP RADAR] ✅ Berhasil menghapus pesan sensitif!`);
+
+                    // Kirim Teguran Edukatif ke pengirim
+                    const sender = msg.key.participant;
+                    await sock.sendMessage(remoteJid, {
+                        text: `🚨 *SISTEM KEAMANAN DATA* 🚨\n\nHalo @${sender.split('@')[0]},\n\nPesan Anda barusan *dihapus secara otomatis* karena terdeteksi mengandung *Data Pribadi Sensitif (NIK / Nomor Pendaftaran)*.\n\nDemi mencegah penyalahgunaan data oleh pihak yang tidak bertanggung jawab, mohon **JANGAN PERNAH** mengirimkan data tersebut di grup publik.\n\n💡 _Ketik *.cekstatus [NIK]* di grup ini, bot akan membaca dan mengirimkan hasilnya langsung ke pesan pribadi (Japri) Anda._`,
+                        mentions: [sender]
+                    });
+
+                    return; // SANGAT PENTING: Hentikan kode agar bot tidak lanjut memproses command lain
+                    
+                } catch (err) {
+                    console.error("[DLP RADAR] ❌ Gagal menghapus pesan:", err.message);
+                }
+            }
+        }
+        // ==============================================================
 
         // ==========================================
         // FITUR CUSTOMER SERVICE (CS) OTOMATIS
