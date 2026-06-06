@@ -1,57 +1,58 @@
 module.exports = {
     name: '.cekstatus',
-    description: 'Mengecek status kelulusan via No Daftar atau NIK',
+    description: 'Mengecek status kelulusan / seleksi santri',
     async execute(sock, remoteJid, args, api, msg) {
         
-        // Cek apakah user memberikan argumen/kata kunci
         if (args.length === 0) {
             return await sock.sendMessage(remoteJid, { 
-                text: '💡 *Format Salah*\n\nContoh penggunaan:\nKetik *.cekstatus REG-2026123456*\natau\nKetik *.cekstatus 3201234567890001* (Menggunakan NIK)' 
+                text: '💡 *Format Salah*\n\nKetik: *.cekstatus [Nomor Daftar / NIK]*\nContoh: *.cekstatus REG-2026123456*' 
             }, { quoted: msg });
         }
 
-        // Ambil argumen pertama sebagai keyword pencarian
         const keyword = args[0];
-        
-        await sock.sendMessage(remoteJid, { text: `🔍 _Sedang mencari data untuk ID: *${keyword}*..._` });
+        await sock.sendMessage(remoteJid, { text: `🔍 _Mencari data kelulusan untuk ID: *${keyword}*..._` });
 
-        // Tembak API Laravel
-        const res = await api.cekStatusSantri(keyword);
+        // Tarik data dari API
+        const res = await api.cekStatus(keyword);
         
         if (!res || !res.success) {
             return await sock.sendMessage(remoteJid, { 
-                text: `❌ *Data Tidak Ditemukan*\n\nPastikan Nomor Pendaftaran atau 16 digit NIK yang Anda masukkan sudah benar dan tidak ada spasi yang tertinggal.` 
+                text: `❌ *Data Tidak Ditemukan*\n\nPastikan Nomor Pendaftaran atau NIK yang Anda masukkan sudah benar.` 
             }, { quoted: msg });
         }
 
-        // Susun laporan kelulusan
-        const c = res.data;
-        let text = `🎓 *STATUS SELEKSI PPDB* 🎓\n\n`;
-        text += `👤 *Nama:* ${c.nama_lengkap}\n`;
-        text += `📝 *No Daftar:* ${c.no_daftar}\n`;
-        text += `🎓 *Jenjang:* ${c.jenjang}\n`;
-        
-        // Tampilkan NIK jika ada, disensor sebagian untuk privasi jika diakses di grup
-        if (c.nik) {
-            const isGroup = remoteJid.endsWith('@g.us');
-            const nikTampil = isGroup ? c.nik.substring(0, 6) + '**********' : c.nik;
-            text += `🪪 *NIK:* ${nikTampil}\n`;
-        }
+        const data = res.data;
+        let text = `🎓 *HASIL SELEKSI PPDB* 🎓\n\n`;
+        text += `👤 Nama: *${data.nama_lengkap}*\n`;
+        text += `📝 No Daftar: *${data.no_daftar}*\n`;
+        text += `📌 Status Seleksi: *${data.status_seleksi}*\n\n`;
+        text += `_Catatan: Jika ada pertanyaan lebih lanjut, silakan hubungi Admin._`;
 
-        text += `\n📊 *Status Seleksi:* *${(c.status_seleksi || 'PENDING').toUpperCase()}*\n`;
-        
-        // Jika sudah lulus atau diterima, tampilkan lokasi ujiannya (jika disetting)
-        const statusLower = (c.status_seleksi || '').toLowerCase();
-        if (['lulus', 'diterima', 'lulus administrasi', 'approved'].includes(statusLower)) {
-            text += `\n📍 *LOKASI TES / WAWANCARA*\n`;
-            text += `🚪 Ruang Santri: ${c.santri_room ? c.santri_room.nama_ruangan : 'Menunggu Jadwal'}\n`;
-            text += `🚪 Ruang Wali: ${c.wali_room ? c.wali_room.nama_ruangan : 'Menunggu Jadwal'}\n`;
+        // ==========================================
+        // SISTEM KEAMANAN PRIVASI (ALIHKAN KE JAPRI JIKA DI GRUP)
+        // ==========================================
+        const isGroup = remoteJid.endsWith('@g.us');
+        const sender = isGroup ? (msg.key.participant || msg.participant) : remoteJid;
+
+        if (isGroup) {
+            try {
+                // 1. Kirim hasil aslinya ke PM (Japri)
+                await sock.sendMessage(sender, { text: text });
+                
+                // 2. Kirim notifikasi di Grup
+                await sock.sendMessage(remoteJid, { 
+                    text: `🔒 Halo @${sender.split('@')[0]},\nDemi menjaga kerahasiaan data calon santri, hasil kelulusan telah sistem kirimkan ke *Pesan Pribadi (Japri)* Anda.\n\n_Silakan cek pesan masuk dari Bot._`,
+                    mentions: [sender]
+                }, { quoted: msg });
+            } catch (err) {
+                await sock.sendMessage(remoteJid, { 
+                    text: `⚠️ @${sender.split('@')[0]}, Bot tidak dapat mengirim pesan Japri kepada Anda (mungkin karena pengaturan privasi WA).\n\nSilakan kirim chat *Ping* ke nomor Bot ini terlebih dahulu, lalu ulangi perintahnya.`,
+                    mentions: [sender]
+                }, { quoted: msg });
+            }
         } else {
-            text += `\n_Mohon bersabar, berkas/data Anda sedang dalam antrean review oleh Panitia._\n`;
+            // Jika sedari awal sudah japri, kirim langsung
+            await sock.sendMessage(remoteJid, { text: text }, { quoted: msg });
         }
-        
-        text += `\n--------------------------------`;
-
-        await sock.sendMessage(remoteJid, { text }, { quoted: msg });
     }
 };

@@ -1,61 +1,56 @@
 module.exports = {
     name: '.berkas',
-    description: 'Cek kelengkapan dokumen persyaratan fisik',
+    description: 'Mengecek kelengkapan dokumen fisik pendaftaran',
     async execute(sock, remoteJid, args, api, msg) {
         
-        // 1. Cek argumen (Wajib memasukkan No Daftar / NIK)
         if (args.length === 0) {
             return await sock.sendMessage(remoteJid, { 
-                text: '💡 *Format Salah*\n\nContoh penggunaan:\nKetik *.berkas REG-2026123456*\natau\nKetik *!berkas 3201234567890001* (Menggunakan NIK)' 
+                text: '💡 *Format Salah*\n\nKetik: *.berkas [Nomor Daftar / NIK]*\nContoh: *.berkas REG-2026123456*' 
             }, { quoted: msg });
         }
 
         const keyword = args[0];
-        await sock.sendMessage(remoteJid, { text: `🔍 _Sedang merekap status dokumen untuk ID: *${keyword}*..._` });
+        await sock.sendMessage(remoteJid, { text: `📁 _Mengecek kelengkapan dokumen untuk ID: *${keyword}*..._` });
 
-        // 2. Tarik data dari API
+        // Tarik data dari API
         const res = await api.cekBerkas(keyword);
         
         if (!res || !res.success) {
             return await sock.sendMessage(remoteJid, { 
-                text: `❌ *Data Tidak Ditemukan*\n\nPastikan Nomor Pendaftaran atau 16 digit NIK yang Anda masukkan sudah benar.` 
+                text: `❌ *Data Tidak Ditemukan*\n\nPastikan Nomor Pendaftaran atau NIK valid.` 
             }, { quoted: msg });
         }
 
-        // 3. Susun Checklist Laporan
         const data = res.data;
-        const master = data.master || [];
-        const terkumpul = data.terkumpul || [];
-        let lengkapSemua = true;
-
         let text = `📂 *STATUS KELENGKAPAN BERKAS* 📂\n\n`;
-        text += `👤 *Nama:* ${data.nama_lengkap}\n`;
-        text += `📝 *No Daftar:* ${data.no_daftar}\n\n`;
-        text += `*Rincian Dokumen Fisik:*\n`;
+        text += `👤 Nama: *${data.nama_lengkap}*\n`;
+        text += `📝 No Daftar: *${data.no_daftar}*\n\n`;
+        text += `📑 *Dokumen yang sudah diserahkan:*\n`;
+        text += `${data.berkas_terkumpul || '- Belum ada dokumen fisik yang diserahkan'}\n\n`;
+        text += `_Mohon segera lengkapi dokumen yang belum diserahkan ke meja panitia._`;
 
-        if (master.length === 0) {
-            text += `_Belum ada syarat berkas yang diatur panitia._\n`;
-        } else {
-            for (const item of master) {
-                // Cek apakah item master ini ada di dalam array terkumpul
-                if (terkumpul.includes(item)) {
-                    text += `✅ ${item}\n`;
-                } else {
-                    text += `❌ ${item} *(Belum diserahkan)*\n`;
-                    lengkapSemua = false; // Jika ada 1 saja yang belum, berarti tidak lengkap
-                }
+        // ==========================================
+        // SISTEM KEAMANAN PRIVASI (ALIHKAN KE JAPRI JIKA DI GRUP)
+        // ==========================================
+        const isGroup = remoteJid.endsWith('@g.us');
+        const sender = isGroup ? (msg.key.participant || msg.participant) : remoteJid;
+
+        if (isGroup) {
+            try {
+                await sock.sendMessage(sender, { text: text });
+                
+                await sock.sendMessage(remoteJid, { 
+                    text: `🔒 Halo @${sender.split('@')[0]},\nDemi kerahasiaan data administrasi, status kelengkapan berkas telah dikirimkan ke *Pesan Pribadi (Japri)* Anda.\n\n_Silakan cek pesan masuk dari Bot._`,
+                    mentions: [sender]
+                }, { quoted: msg });
+            } catch (err) {
+                await sock.sendMessage(remoteJid, { 
+                    text: `⚠️ @${sender.split('@')[0]}, Bot tidak dapat mengirim pesan Japri kepada Anda (mungkin karena pengaturan privasi WA).\n\nSilakan kirim chat *Ping* ke nomor Bot ini terlebih dahulu, lalu ulangi perintahnya.`,
+                    mentions: [sender]
+                }, { quoted: msg });
             }
-        }
-        
-        text += `\n--------------------------------\n`;
-
-        // 4. Kesimpulan Akhir
-        if (lengkapSemua && master.length > 0) {
-            text += `🎉 *ALHAMDULILLAH*\nSeluruh berkas persyaratan telah lengkap dan diserahkan ke Panitia/Sekretariat. Terima kasih.`;
         } else {
-            text += `⚠️ *PERHATIAN*\nMohon segera lengkapi dan serahkan berkas yang bertanda (❌) ke sekretariat panitia saat kedatangan ke Pondok.`;
+            await sock.sendMessage(remoteJid, { text: text }, { quoted: msg });
         }
-
-        await sock.sendMessage(remoteJid, { text }, { quoted: msg });
     }
 };
