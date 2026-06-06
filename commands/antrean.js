@@ -2,7 +2,26 @@ module.exports = {
     name: '.antrean',
     description: 'Cek sisa antrean tes wawancara secara real-time',
     async execute(sock, remoteJid, args, api, msg) {
-        
+
+        // ==========================================
+        // 🔐 SAKLAR PENGATURAN WAKTU WAWANCARA
+        // Ubah kata 'false' menjadi 'true' jika hari H Wawancara sudah tiba!
+        // ==========================================
+        const isWawancaraMulai = false;
+
+        if (!isWawancaraMulai) {
+            let text = `⏳ *FITUR ANTREAN BELUM DIBUKA* ⏳\n\n`;
+            text += `Assalamu'alaikum Bapak/Ibu. 🙏\n\n`;
+            text += `Mohon maaf, menu pemantauan nomor antrean saat ini *belum diaktifkan*.\n\n`;
+            text += `Fitur ini khusus digunakan pada saat *Hari H Pelaksanaan Tes & Wawancara* di pondok nanti. Tujuannya agar Bapak/Ibu bisa memantau sisa giliran panggilan secara _real-time_ dari HP masing-masing tanpa harus berkerumun di depan ruangan.\n\n`;
+            text += `Silakan pantau terus grup WhatsApp untuk informasi jadwal pelaksanaannya ya. Terima kasih atas pengertiannya! 😊`;
+
+            return await sock.sendMessage(remoteJid, { text: text }, { quoted: msg });
+        }
+
+        // ==========================================
+        // 🔓 LOGIKA ASLI JIKA SAKLAR SUDAH DIBUKA (TRUE)
+        // ==========================================
         if (args.length === 0) {
             return await sock.sendMessage(remoteJid, { 
                 text: '💡 *Format Salah*\n\nContoh penggunaan:\nKetik *.antrean REG-2026123456*\natau menggunakan NIK:\nKetik *.antrean 3201234567890001*' 
@@ -46,6 +65,31 @@ module.exports = {
             }
         }
 
-        await sock.sendMessage(remoteJid, { text }, { quoted: msg });
+        // ==========================================
+        // SISTEM KEAMANAN PRIVASI (ALIHKAN KE JAPRI JIKA DI GRUP)
+        // ==========================================
+        const isGroup = remoteJid.endsWith('@g.us');
+        const sender = isGroup ? (msg.key.participant || msg.participant) : remoteJid;
+
+        if (isGroup) {
+            try {
+                // 1. Kirim hasil aslinya ke PM (Japri)
+                await sock.sendMessage(sender, { text: text });
+                
+                // 2. Kirim notifikasi di Grup
+                await sock.sendMessage(remoteJid, { 
+                    text: `🔒 Halo @${sender.split('@')[0]},\nInformasi nomor antrean telah dikirimkan ke *Pesan Pribadi (Japri)* Anda untuk menghindari keramaian notifikasi di grup.\n\n_Silakan cek pesan masuk dari Bot._`,
+                    mentions: [sender]
+                }, { quoted: msg });
+            } catch (err) {
+                await sock.sendMessage(remoteJid, { 
+                    text: `⚠️ @${sender.split('@')[0]}, Bot tidak dapat mengirim pesan Japri kepada Anda (pengaturan privasi).\n\nSilakan kirim chat *Ping* ke nomor Bot ini terlebih dahulu, lalu ulangi perintahnya.`,
+                    mentions: [sender]
+                }, { quoted: msg });
+            }
+        } else {
+            // Jika sudah lewat Japri, kirim langsung
+            await sock.sendMessage(remoteJid, { text }, { quoted: msg });
+        }
     }
 };
