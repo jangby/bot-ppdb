@@ -3,25 +3,43 @@ module.exports = {
     description: 'Mengecek status kelulusan via No Daftar atau NIK',
     async execute(sock, remoteJid, args, api, msg) {
         
-        // Cek apakah user memberikan argumen/kata kunci
-        if (args.length === 0) {
-            return await sock.sendMessage(remoteJid, { 
-                text: '💡 *Format Salah*\n\nContoh penggunaan:\nKetik *.cekstatus REG-2026123456*\natau\nKetik *.cekstatus 3201234567890001* (Menggunakan NIK)' 
-            }, { quoted: msg });
+        const isGroup = remoteJid.endsWith('@g.us');
+        
+        // 1. Jika di grup, HAPUS PESAN PERINTAHNYA TERLEBIH DAHULU agar NIK tidak terlihat
+        if (isGroup) {
+            try {
+                await sock.sendMessage(remoteJid, { delete: msg.key });
+            } catch (err) {
+                console.log("Gagal menghapus pesan perintah (Bot mungkin bukan admin):", err);
+            }
         }
 
-        // Ambil argumen pertama sebagai keyword pencarian
+        // 2. Cek apakah user memberikan argumen
+        if (args.length === 0) {
+            const msgError = '💡 *Format Salah*\n\nContoh penggunaan:\nKetik *.cekstatus REG-2026123456*\natau\nKetik *.cekstatus 3201234567890001*';
+            
+            if (isGroup) {
+                // Kirim peringatan ke Japri jika salah format di grup
+                const sender = msg.key.participant;
+                await sock.sendMessage(sender, { text: msgError });
+                return;
+            }
+            return await sock.sendMessage(remoteJid, { text: msgError }, { quoted: msg });
+        }
+
         const keyword = args[0];
         
-        await sock.sendMessage(remoteJid, { text: `🔍 _Sedang mencari data untuk ID: *${keyword}*..._` });
+        // Kirim status "Sedang mencari" (Di Japri jika di grup)
+        const targetJid = isGroup ? (msg.key.participant || msg.participant) : remoteJid;
+        await sock.sendMessage(targetJid, { text: `🔍 _Sedang mencari data untuk ID: *${keyword}*..._` });
 
-        // Tembak API Laravel (Menggunakan fungsi yang benar: cekStatusSantri)
+        // Tembak API Laravel
         const res = await api.cekStatusSantri(keyword);
         
         if (!res || !res.success) {
-            return await sock.sendMessage(remoteJid, { 
-                text: `❌ *Data Tidak Ditemukan*\n\nPastikan Nomor Pendaftaran atau 16 digit NIK yang Anda masukkan sudah benar dan tidak ada spasi yang tertinggal.` 
-            }, { quoted: msg });
+            return await sock.sendMessage(targetJid, { 
+                text: `❌ *Data Tidak Ditemukan*\n\nPastikan Nomor Pendaftaran atau 16 digit NIK yang Anda masukkan sudah benar.` 
+            });
         }
 
         // Susun laporan kelulusan
@@ -31,10 +49,8 @@ module.exports = {
         text += `📝 *No Daftar:* ${c.no_daftar}\n`;
         text += `🎓 *Jenjang:* ${c.jenjang}\n`;
         text += `🪪 *NIK:* ${c.nik || '-'}\n`;
-        
         text += `\n📊 *Status Seleksi:* *${(c.status_seleksi || 'PENDING').toUpperCase()}*\n`;
         
-        // Jika sudah lulus atau diterima, tampilkan lokasi ujiannya
         const statusLower = (c.status_seleksi || '').toLowerCase();
         if (['lulus', 'diterima', 'lulus administrasi', 'approved'].includes(statusLower)) {
             text += `\n📍 *LOKASI TES / WAWANCARA*\n`;
@@ -46,35 +62,25 @@ module.exports = {
         
         text += `\n--------------------------------`;
 
-        // ==========================================
-        // SISTEM KEAMANAN PRIVASI (ALIHKAN KE JAPRI JIKA DI GRUP)
-        // ==========================================
-        const isGroup = remoteJid.endsWith('@g.us');
-        
-        // Tangkap nomor asli pengirim pesan
-        const sender = isGroup ? (msg.key.participant || msg.participant) : remoteJid;
-
-        if (isGroup) {
-            try {
-                // 1. Kirim hasil aslinya ke PM (Japri) pengirim
-                await sock.sendMessage(sender, { text: text });
-                
-                // 2. Kirim notifikasi di Grup untuk memberi tahu bahwa data sudah di-Japri
+        // 3. Kirim hasil ke Japri
+        try {
+            await sock.sendMessage(targetJid, { text: text });
+            
+            // Jika asal mulanya di grup, beri notifikasi singkat di grup
+            if (isGroup) {
+                const sender = msg.key.participant;
                 await sock.sendMessage(remoteJid, { 
-                    text: `🔒 Halo @${sender.split('@')[0]},\nDemi menjaga kerahasiaan NIK dan data pribadi Ananda, hasil pengecekan telah sistem kirimkan ke *Pesan Pribadi (Japri)* Anda.\n\n_Silakan cek pesan masuk dari Bot._`,
+                    text: `🔒 Halo @${sender.split('@')[0]},\nHasil pengecekan NIK/No Daftar telah saya kirimkan ke *Pesan Pribadi (Japri)* Anda untuk menjaga privasi data.`,
                     mentions: [sender]
-                }, { quoted: msg });
-                
-            } catch (err) {
-                // Jika gagal japri (biasanya karena orang tua mensetting privasi tolak pesan nomor baru)
-                await sock.sendMessage(remoteJid, { 
-                    text: `⚠️ @${sender.split('@')[0]}, Bot tidak dapat mengirim pesan Japri kepada Anda.\n\nSilakan kirim chat *Ping* ke nomor Bot ini terlebih dahulu untuk membuka jalur pesan, lalu ulangi perintahnya.`,
-                    mentions: [sender]
-                }, { quoted: msg });
+                });
             }
-        } else {
-            // Jika sedari awal perintahnya memang diketik di Japri, langsung kirim balasannya
-            await sock.sendMessage(remoteJid, { text: text }, { quoted: msg });
+        } catch (err) {
+            if (isGroup) {
+                await sock.sendMessage(remoteJid, { 
+                    text: `⚠️ @${msg.key.participant.split('@')[0]}, Bot tidak bisa mengirim Japri. Silakan chat Bot terlebih dahulu agar jalur pesan terbuka.`,
+                    mentions: [msg.key.participant]
+                });
+            }
         }
     }
 };
